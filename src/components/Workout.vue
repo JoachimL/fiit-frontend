@@ -26,7 +26,7 @@
                     <span class="glyphicon glyphicon-copy"></span> Copy this workout
                 </a>
                 <form method="post" id="copy-workout-form" class="copy-workout form-inline" asp-action="CopyWorkout">
-                    <input name="WorkoutId" type="hidden" value="@Model.WorkoutId" />
+                    <input name="WorkoutId" type="hidden" :value="$route.params.workoutId" />
                     <input name="CurrentDateTime" class="current-datetime" type="hidden" />
                     <input name="TimeZoneName" value="Europe/Oslo" type="hidden" />
                     <button type="submit" class="btn btn-primary copy-workout hidden-submit">Copy this workout</button>
@@ -47,7 +47,7 @@
 
     <form v-on:submit.prevent="onSubmit" class="form-inline collapse well" id="workoutDetailsEditor">
         <div class="form-group">
-            <input type="hidden" id="StartDateTime-ISO" value="@Model.StartDateTime.ToString("o")" />
+            <input type="hidden" id="StartDateTime-ISO" :value="startDateTimeIsoFormatted" />
             <label asp-for="StartDateTime" class="control-label"></label>
             <div class='input-group date' id='startedDateTimeInput'>
                 <span class="input-group-addon">
@@ -73,7 +73,7 @@
                 <img src="/static/images/spinner.gif" height="256" width="256"/>
                 <p class="text-muted">Loading workout...</p>
             </div>
-            <form v-else asp-action="SaveActivity" class="form">
+            <form v-else  class="form" v-on:submit.prevent="saveActivity()">
                 <div class="form-group">
                     <label for="exercise">Exercise</label>
                     <v-select v-model="selectedExercise"
@@ -178,13 +178,16 @@ export default {
     return {
       loadingWorkout: false,
       loadingActivity: false,
+      workoutStartDateTime: "",
+      startDateTimeIsoFormatted: "",
       error: null,
       exercises: [],
       sets: this.createDefaultSets(),
       activities: [],
       pendingActivities: [],
       newActivity: true,
-      selectedExercise: null
+      selectedExercise: null,
+      workoutVersion: 0
     }
   },
   created () {
@@ -201,15 +204,38 @@ export default {
         axios.get(process.env.API_ROOT + '/workouts/' + this.$route.params.workoutId)
             .then(response=>{
                 var workout = response.data;
-                this.pendingActivities = workout.pendingActivities;
-                this.activities = workout.activities;
-                this.loadingWorkout = false;
+                this.setActiveWorkoutData(workout);
             })
             .catch(e=>{
                 console.log(e);
                 this.loadingWorkout = false;    
             })
             
+    },
+    fetchWorkoutUntilNewer (version)  {
+        axios.get(process.env.API_ROOT + '/workouts/' + this.$route.params.workoutId)
+            .then(response=>{
+                var workout = response.data;
+                if(workout.version > version) {
+                    this.setActiveWorkoutData(workout);
+                } else {
+                    var that = this;
+                    setTimeout(function() { that.fetchWorkoutUntilNewer(version)}, 1000);
+                }
+            })
+            .catch(e=>{
+                console.log(e);
+                this.loadingWorkout = false;    
+            })
+            
+    },
+    setActiveWorkoutData(workout) {
+        this.pendingActivities = workout.pendingActivities;
+        this.activities = workout.activities;
+        this.workoutVersion = workout.version;
+        this.loadingWorkout = false;
+        this.startDateTimeIsoFormatted = workout.startDateTimeIsoFormatted,
+        this.workoutStartDateTime = workout.startDateTime
     },
     fetchExercises () {
       this.loadingExercises = true;
@@ -233,10 +259,22 @@ export default {
             this.sets.push({repetitions:last.repetitions, weight: last.weight, index: this.sets.length});
         }
     },
+    saveActivity () {
+        if(this.isNewActivity){
+            var payload = {
+                workoutId: this.$route.params.workoutId,
+                exerciseId: this.selectedExercise.id,
+                sets: this.sets,
+                version: this.workoutVersion
+            };
+            axios.post(process.env.API_ROOT + '/workouts/' + payload.workoutId + '/activities', payload)
+        }
+        this.fetchWorkoutUntilNewer(this.workoutVersion);
+    },
     getRecommendedSets (exercise) {
-        if(exercise) {
+        if(exercise && exercise !== this.selectedExercise) {
           this.loadingActivity = true;
-          axios.get(process.env.API_ROOT + '/my/exercises/' + exercise.Id + '/last')
+          axios.get(process.env.API_ROOT + '/my/exercises/' + exercise.id + '/last')
                 .then(function (response) {
                     var data = response.data;
                     var sets = data && data.sets;
@@ -245,11 +283,11 @@ export default {
                     } else {
                         this.sets = createDefaultSets();
                     }
-                    //this.selectedExercise = exerciseId
+                    this.selectedExercise = exercise
                     this.loadingActivity = false;
                 })
                 .catch(e=>{
-                    //this.selectedExercise = value.id
+                    this.selectedExercise = exercise
                     this.loadingActivity = false;
                 })
         }
@@ -257,7 +295,7 @@ export default {
     loadPendingActivity(activity){
         console.log('Loading pending activity...')
         this.isNewActivity = true;
-        this.selectedExercise = this.exercises.find(e=>e.id == activity.exerciseId);
+        this.getRecommendedSets(this.exercises.find(e=>e.id == activity.exerciseId));
     },
     loadCompletedActivity(activity){
         console.log('Loading completed activity...')
