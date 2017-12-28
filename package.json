@@ -24,7 +24,7 @@
     "vue-axios": "^2.0.2",
     "vue-bootstrap-datetimepicker": "^4.1.0",
     "vue-router": "^3.0.1",
-    "vue2-selectize": "^1.1.4"
+    "vue-select": "sagalbot/vue-select"
   },
   "devDependencies": {
     "autoprefixer": "^7.1.2",

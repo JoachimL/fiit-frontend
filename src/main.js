@@ -15,5 +15,8 @@ new Vue({
   el: '#app',
   router,
   template: '<App/>',
-  components: { App }
+  components: { App },
+  beforeMount: function () {
+    this.userId = this.$el.attributes['data-user-id'].value
+  }
 })

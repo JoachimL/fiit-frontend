@@ -13,7 +13,7 @@ export default new Router({
       component: Workouts
     },
     {
-      path: '/workout',
+      path: '/workout/:workoutId',
       name: 'Workout',
       component: Workout
     }

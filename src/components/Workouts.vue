@@ -40,7 +40,7 @@
     </div>
   </transition>
 
-    <router-link to="workout">Workout</router-link>
+    <router-link to="workout/ad24a0bd-7e99-40d5-a392-5623cb5f8c81">Workout</router-link>
     <div>
       {{showNewWorkoutModal}}
       <button class="btn btn-success" type="button" @click="showNewWorkoutModal=true">New workout</button>
