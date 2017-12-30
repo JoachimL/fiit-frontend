@@ -1,45 +1,37 @@
 <template>
 
+<div v-if="errorMessage" class="alert alert-warning alert-dismissible fade show" role="alert">
+  <strong>Error</strong> {{ errorMessage }}
+  <button type="button" class="close" data-dismiss="alert" aria-label="Close">
+    <span aria-hidden="true">&times;</span>
+  </button>
+</div>
+
+<div v-else class="container">
+
 <div v-if="loadingWorkout" class="text-center">
     <img src="/static/images/spinner.gif" height="256" width="256"/>
     <p class="text-muted">Loading workout...</p>
 </div>
 
-<div v-else class="container">
-
-<div class="btn-group pull-right" dropdown>
-    <button type="button" class="btn btn-primary dropdown-toggle" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
-        <span class="glyphicon glyphicon-cog" aria-hidden="true"></span>
-        <span class="caret"></span>
-        <span class="sr-only">Show menu</span>
-    </button>
-    <ul class="dropdown-menu" role="menu">
-        <li>
-            <a data-toggle="collapse" href="#workoutDetailsEditor" aria-expanded="false" aria-controls="workoutDetailsEditor">
-                <span class="glyphicon glyphicon-edit"></span> Edit workout
-            </a>
-        </li>
-
-        <li v-if="activities">
-            <a href="#" class="submit-form" data-target="#copy-workout-form">
-                <span class="glyphicon glyphicon-copy"></span> Copy this workout
-            </a>
-            <form method="post" id="copy-workout-form" class="copy-workout form-inline" asp-action="CopyWorkout">
-                <input name="WorkoutId" type="hidden" :value="$route.params.workoutId" />
-                <input name="CurrentDateTime" class="current-datetime" type="hidden" />
-                <input name="TimeZoneName" value="Europe/Oslo" type="hidden" />
-                <button type="submit" class="btn btn-primary copy-workout hidden-submit">Copy this workout</button>
-            </form>
-        </li>
-    
-        <li class="divider"></li>
-        <li>
-            <a asp-action="Delete" asp-route-id="@Model.WorkoutId">
-                <span class="glyphicon glyphicon-trash"></span> Delete
-            </a>
-        </li>
-    </ul>
+<div>
+    <b-dropdown class="float-right" text="...">
+        <b-dropdown-item>
+            <span class="fa fa-edit"></span> Edit workout
+        </b-dropdown-item>
+        <b-dropdown-item v-if="activities.length" @click="$refs.confirmCopy.show()">
+            <span class="fa fa-copy"></span> Copy workout
+        </b-dropdown-item>
+        <b-dropdown-divider />
+        <b-dropdown-item-button v-on:click="deleteWorkout()">
+            <span class="fa fa-trash"></span> Delete workout
+        </b-dropdown-item-button>
+    </b-dropdown>
 </div>
+
+<b-modal ref="confirmCopy" title="Confirm new workout" @ok="copyWorkout">
+    <p class="my-4">Click OK to start a new workout with the activities of this workout.</p>
+</b-modal>
 
 <div class="row">
 <h2>Workout details</h2>
@@ -64,15 +56,20 @@
 </form>
 </div>
 
-<div class="row">
-    <h3 v-if="newActivity">Add activity</h3>
-    <h3 v-else>Update activity</h3>
-    <div class="col-12">
+<div class="card">
+  <div v-if="isNewActivity" class="card-header">
+    Add activity
+  </div>
+  <div v-else class="card-header">
+    Update activity
+  </div>
+  <div class="card-body">
+   <div class="col-12">
         <div v-if="loadingActivity" class="text-center">
             <img src="/static/images/spinner.gif" height="256" width="256"/>
-            <p class="text-muted">Loading workout...</p>
+            <p class="text-muted">Loading activity...</p>
         </div>
-        <form v-else  class="form" v-on:submit.prevent="saveActivity()">
+         <form v-else  class="form" v-on:submit.prevent="finishActivity()">
             <div class="form-group">
                 <label for="exercise">Exercise</label>
                 <v-select v-model="selectedExercise"
@@ -90,7 +87,7 @@
                     <div class="col-2">
                         <p class="form-control-static"><strong>Set</strong></p>
                     </div>
-                    <div class="col-5">
+                    <div class="col-4">
                         <p class="form-control-static"><strong>Repetitions</strong></p>
                     </div>
                     <div class="col-5">
@@ -99,7 +96,7 @@
                 </div>
                 <div class="form-row" v-for="set in sets" :key="set.index">
                     <div class="col-2"><p class="form-control-static"><strong>{{set.index + 1}}</strong></p></div>
-                    <div class="col-5">
+                    <div class="col-4">
                         <label for="set-reps-@set.Index" class="sr-only">Repetitions</label>
                         <input class="form-control" v-model="set.repetitions" v-bind:id="'set-reps-' + set.index" size="3" placeholder="Reps" type="number" step="1" />
                     </div>
@@ -107,14 +104,17 @@
                         <label for="set-weight-@set.Index" class="sr-only">Weight</label>
                         <input class="form-control" v-model="set.weight" v-bind:id="'set-weight-' + set.index" type="number" step="0.1" min="0" size="5" placeholder="Weight" />
                     </div>
+                    <div class="col-1" v-if="set==sets[sets.length - 1]">
+                        <button class="btn btn-primary btn-sm form-control-static add-set" type="button" v-on:click="addSet">
+                            <span class="fa fa-plus" aria-hidden="true"></span> <span class="sr-only">Add set</span></a>
+                        </button>
+                    </div>
                 </div>
                 
             </div>
             <div class="row">
                 <div class="offset-8 col-4">
-                    <button class="btn btn-primary btn-sm add-set float-right" type="button" v-on:click="addSet">
-                        <span class="fa fa-plus" aria-hidden="true"></span> <span class="sr-only">Add set</span></a>
-                    </button>
+                   
                 </div>
             </div>
             <div class="row">
@@ -124,15 +124,14 @@
                     </button>
                 </div>
             </div>
-        </form>
+        </form> 
     </div>
+  </div>
 </div>
 
 
 <div class="card" v-if="pendingActivities && pendingActivities.length > 0">
-    <div class="card-header">Pending activities
-        <p>Click activity to add it to your workout.</p>
-    </div>
+    <div class="card-header">Pending activities</div>
     <div class="list-group">
         <button v-for="activity in pendingActivities" v-bind:key="activity.id" v-on:click="loadPendingActivity(activity)" class="list-group-item d-flex justify-content-between align-items-center">
             {{ activity.exerciseName}}
@@ -169,6 +168,7 @@ export default {
  },
   data () {
     return {
+      errorMessage: "",
       loadingWorkout: false,
       loadingActivity: false,
       workoutStartDateTime: "",
@@ -178,7 +178,7 @@ export default {
       sets: this.createDefaultSets(),
       activities: [],
       pendingActivities: [],
-      newActivity: true,
+      isNewActivity: true,
       selectedExercise: null,
       workoutVersion: 0
     }
@@ -252,23 +252,41 @@ export default {
             this.sets.push({repetitions:last.repetitions, weight: last.weight, index: this.sets.length});
         }
     },
-    saveActivity () {
+    finishActivity () {
+        var exerciseId = this.selectedExercise.id
         if(this.isNewActivity){
             var payload = {
                 workoutId: this.$route.params.workoutId,
-                exerciseId: this.selectedExercise.id,
+                exerciseId: exerciseId,
                 sets: this.sets,
                 version: this.workoutVersion
             };
             axios.post(process.env.API_ROOT + '/workouts/' + payload.workoutId + '/activities', payload)
+                .then(r => {
+                    this.fetchWorkoutUntilNewer(this.workoutVersion)
+                    console.log("Pending activities left: " + this.pendingActivities.length)
+                    this.pendingActivities = 
+                        this.pendingActivities.filter(a => { 
+                            console.log('Checking pending activity ' + a.exerciseName + '(' + a.exerciseId + ')')
+                            var result = this.activities.find(x=>{x.exerciseId == a.exerciseId })
+                            console.log(a.exerciseId + (result ? '' : ' not ') + 'found')
+                            return !result
+                        });
+                    console.log("Pending activities left after filter: " + this.pendingActivities.length)
+                    if(this.pendingActivities.length) {
+                        var newExercise = this.findExercise(this.pendingActivities[0].exerciseId)
+                        console.log('New exercise found: ' + newExercise.id)
+                        this.getRecommendedSets(newExercise)
+                    } else { 
+                        this.clearActivity() 
+                    }
+                })
         }
-        this.fetchWorkoutUntilNewer(this.workoutVersion)
-        this.clearActivity()
     },
     clearActivity(){
         this.isNewActivity = true;
         this.selectedExercise = null;
-        this.sets = createDefaultSets();
+        this.sets = this.createDefaultSets();
     },
     getRecommendedSets (exercise) {
         if(exercise && exercise !== this.selectedExercise) {
@@ -294,7 +312,11 @@ export default {
     loadPendingActivity(activity){
         console.log('Loading pending activity...')
         this.isNewActivity = true;
-        this.getRecommendedSets(this.exercises.find(e=>e.id == activity.exerciseId));
+        this.getRecommendedSets(this.findExercise(activity.exerciseId));
+    },
+    findExercise(exerciseId){
+      console.log('Finding exercise id ' + exerciseId)
+      return this.exercises.find(e=>e.id === exerciseId)  
     },
     loadCompletedActivity(activity){
         console.log('Loading completed activity...')
@@ -306,6 +328,20 @@ export default {
         { index: 1, weight: 0, repetitions: 0 },
         { index: 2, weight: 0, repetitions: 0 }
         ];
+    },
+    copyWorkout () {
+        var payload = {
+                workoutId: this.$route.params.workoutId,
+                timeZoneName: moment.tz.guess(),
+                currentDateTime: moment().toISOString()
+            };
+        axios.post(process.env.API_ROOT + '/workouts/' + payload.workoutId + '/copy', payload)
+            .then(r => {
+                this.$router.push('/workouts/' + r.data.workoutId)
+            })
+            .catch(e=>{
+                this.errorMessage = 'Error occured when trying to create new workout: ' + e
+            })
     }
   }
 }
