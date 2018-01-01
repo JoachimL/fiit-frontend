@@ -2,64 +2,34 @@
 
   <div class="container-fluid">
     <h1>Your workouts</h1>
-    
-    <transition name="modal" v-if="showNewWorkoutModal" @close="showNewWorkoutModal = false">
-    <div class="modal-mask">
-      <div class="modal-wrapper">
-        <div class="modal-container">
-          <div class="modal-header">
-            <slot name="header">
-              Register new workout
-            </slot>
-          </div>
 
-          <div class="modal-body">
-            <slot name="body">
-              <form>
-                
-                  <date-picker v-model="newWorkoutDate" :config="config" required></date-picker>
-                  <span class="input-group-addon">
-                        <span class="glyphicon glyphicon-calendar"></span>
-                    </span>
-              </form>
-            </slot>
-          </div>
-
-          <div class="modal-footer">
-            <slot name="footer">
-              <button class="btn btn-warning" @click="$emit('close')">
-                Close
-              </button>
-              <button class="btn btn-success" @click="$emit('close')">
-                Create
-              </button>
-            </slot>
-          </div>
+    <b-modal ref="startNewWorkoutModal" title="Start new workout" @ok="startNewWorkout">
+        <p class="my-4">Start new workout with this start date and time:</p>
+        <div class="input-group">
+          <date-picker v-model="newWorkoutDate" :config="config" required></date-picker>
+          <span class="input-group-append">
+            <span class="fa fa-calendar"></span>
+          </span>
         </div>
-      </div>
-    </div>
-  </transition>
+    </b-modal>
 
-    <router-link to="workout/ad24a0bd-7e99-40d5-a392-5623cb5f8c81">Workout</router-link>
     <div>
-      {{showNewWorkoutModal}}
-      <button class="btn btn-success" type="button" @click="showNewWorkoutModal=true">New workout</button>
-    </div>
-    <div class="list-group">
-      <router-link to="/workout/1" class="list-group-item list-group-item-action justify-content-between">
-        7. desember 2017 17:00
-        <span class="badge badge-default badge-pill">8</span>
-      </router-link>
-      <router-link to="/workout/1" class="list-group-item list-group-item-action justify-content-between">
-        6. desember 2017 15:00
-        <span class="badge badge-default badge-pill">11</span>
-      </router-link>
-      <router-link to="/workout/1" class="list-group-item list-group-item-action justify-content-between">
-        4. desember 2017 20:00
-        <span class="badge badge-default badge-pill">1</span>
-      </router-link>
+      <button class="btn btn-success" type="button" @click="$refs.startNewWorkoutModal.show()">New workout</button>
     </div>
 
+    <div v-if="loadingWorkouts" class="text-center">
+        <img src="/static/images/spinner.gif" height="256" width="256"/>
+        <p class="text-muted">Loading workouts...</p>
+    </div>
+
+    <div class="list-group">
+       <router-link :to="{ name: 'Workout', params: { 'workoutId': workout.id } }" 
+            v-for="workout in workouts" v-bind:key="workout.id" 
+            class="list-group-item d-flex justify-content-between align-items-center">
+            {{ workout.displayStartDateAndTime}}
+            <span class="fa fa-chevron-right float-right"></span>
+       </router-link>
+    </div>
   </div>
 </template>
 
@@ -78,16 +48,34 @@ export default {
   data () {
     return {
       showNewWorkoutModal: false,
-      createNewWorkout: function () {
-        // call to new workout api method
-        Vue.axios.post('')
-
-        // $router.push({path: 'workout/$workoutId'})
-      },
       newWorkoutDate: moment(),
+      loadingWorkouts: false,
+      workouts: [],
       config: {
         format: 'DD/MM/YYYY HH:mm'
       }
+    }
+  },
+  created () {
+    this.fetchWorkouts()
+  },
+  methods: {
+    startNewWorkout () {
+
+    },
+    fetchWorkouts () {
+      this.loadingWorkouts = true
+      axios
+        .get(process.env.API_ROOT + '/workouts/')
+        .then(response => {
+          console.log(response)
+          this.workouts = response.data.workouts 
+          this.loadingWorkouts = false
+        })
+        .catch(e => {
+          console.log('Error occured: ' + e)
+          this.loadingWorkouts = false
+        })
     }
   },
   components: {

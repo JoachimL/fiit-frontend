@@ -1,19 +1,19 @@
 <template>
 
-<div v-if="errorMessage" class="alert alert-warning alert-dismissible fade show" role="alert">
+<div class="container">
+<div v-if="errorMessage" class="alert alert-danger alert-dismissible fade show" role="alert">
   <strong>Error</strong> {{ errorMessage }}
   <button type="button" class="close" data-dismiss="alert" aria-label="Close">
     <span aria-hidden="true">&times;</span>
   </button>
 </div>
 
-<div v-else class="container">
-
 <div v-if="loadingWorkout" class="text-center">
     <img src="/static/images/spinner.gif" height="256" width="256"/>
     <p class="text-muted">Loading workout...</p>
 </div>
 
+<div v-else>
 <div>
     <b-dropdown class="float-right" text="...">
         <b-dropdown-item>
@@ -154,6 +154,9 @@
 
 </div>
 
+<router-link :to="{name: 'Workouts'}">Back to workouts</router-link>
+</div>
+
 </template>
 
 <script>
@@ -184,6 +187,7 @@ export default {
     }
   },
   created () {
+    console.log("Workout component created.")
     this.fetchData()
   },
   methods: {
@@ -253,35 +257,50 @@ export default {
         }
     },
     finishActivity () {
+        this.savingActivity = true;
         var exerciseId = this.selectedExercise.id
         if(this.isNewActivity){
-            var payload = {
-                workoutId: this.$route.params.workoutId,
-                exerciseId: exerciseId,
-                sets: this.sets,
-                version: this.workoutVersion
-            };
-            axios.post(process.env.API_ROOT + '/workouts/' + payload.workoutId + '/activities', payload)
-                .then(r => {
-                    this.fetchWorkoutUntilNewer(this.workoutVersion)
-                    console.log("Pending activities left: " + this.pendingActivities.length)
-                    this.pendingActivities = 
-                        this.pendingActivities.filter(a => { 
-                            console.log('Checking pending activity ' + a.exerciseName + '(' + a.exerciseId + ')')
-                            var result = this.activities.find(x=>{x.exerciseId == a.exerciseId })
-                            console.log(a.exerciseId + (result ? '' : ' not ') + 'found')
-                            return !result
-                        });
-                    console.log("Pending activities left after filter: " + this.pendingActivities.length)
-                    if(this.pendingActivities.length) {
-                        var newExercise = this.findExercise(this.pendingActivities[0].exerciseId)
-                        console.log('New exercise found: ' + newExercise.id)
-                        this.getRecommendedSets(newExercise)
-                    } else { 
-                        this.clearActivity() 
-                    }
-                })
+            this.saveNewActivity(exerciseId)
+        } else {
+            this.updateActivity(exerciseId)
         }
+    },
+    updateActivity (exerciseId) {
+        console.error('Not implemented')
+        this.savingActivity = false
+    },
+    saveNewActivity (exerciseId) {
+        var payload = {
+                        workoutId: this.$route.params.workoutId,
+                        exerciseId: exerciseId,
+                        sets: this.sets,
+                        version: this.workoutVersion
+                    };
+        axios.post(process.env.API_ROOT + '/workouts/' + payload.workoutId + '/activities', payload)
+            .then(r => {
+                this.fetchWorkoutUntilNewer(this.workoutVersion)
+                console.log("Pending activities left: " + this.pendingActivities.length)
+                this.pendingActivities = 
+                    this.pendingActivities.filter(a => { 
+                        console.log('Checking pending activity ' + a.exerciseName + '(' + a.exerciseId + ')')
+                        var result = this.activities.find(x=>{x.exerciseId == a.exerciseId })
+                        console.log(a.exerciseId + (result ? '' : ' not ') + 'found')
+                        return !result
+                    });
+                console.log("Pending activities left after filter: " + this.pendingActivities.length)
+                if(this.pendingActivities.length) {
+                    var newExercise = this.findExercise(this.pendingActivities[0].exerciseId)
+                    console.log('New exercise found: ' + newExercise.id)
+                    this.getRecommendedSets(newExercise)
+                } else { 
+                    this.clearActivity() 
+                }
+                this.savingActivity = false
+            }).catch(ex => {
+                this.errorMessage = "Unable to save activity: " + ex
+                console.log(ex)
+                this.savingActivity = false
+            })
     },
     clearActivity(){
         this.isNewActivity = true;
