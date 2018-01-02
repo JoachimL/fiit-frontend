@@ -75,7 +75,7 @@
                 <v-select v-model="selectedExercise"
                     :disabled="!exercises"
                     label="name"
-                    :options="exercises"
+                    :options="$store.state.exercises"
                     placeholder="Select exercise"
                     :onChange="getRecommendedSets"
                     >
@@ -162,7 +162,7 @@
 <script>
 import vSelect from "vue-select"
 import axios from 'axios'
-
+import moment from 'moment'
 
 
 export default {
@@ -235,17 +235,11 @@ export default {
         this.workoutStartDateTime = workout.startDateTime
     },
     fetchExercises () {
-      this.loadingExercises = true;
-      axios
-        .get(process.env.API_ROOT + '/exercises')
-        .then(exercises => {
-          this.exercises = exercises.data.map( (e,index) => ({index, ...e}));
-          this.loadingExercises = false;
-        })
-        .catch(e => {
-          console.log('Error occured: ' + e)
-          this.loadingExercises = false;
-        })
+      console.log('Checking store.state.exercises.length:' + this.$store.state.exercises.length)
+      if(this.$store.state.exercises.length == 0) {
+          console.log('Dispatching exercises.')
+          this.$store.dispatch('fetchExercises')
+      }
     }, 
     addSet (weight, repetitions) {
         if(repetitions && weight){

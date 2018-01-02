@@ -17,14 +17,14 @@
       <button class="btn btn-success" type="button" @click="$refs.startNewWorkoutModal.show()">New workout</button>
     </div>
 
-    <div v-if="loadingWorkouts" class="text-center">
+    <div v-if="$store.state.isLoadingWorkouts" class="text-center">
         <img src="/static/images/spinner.gif" height="256" width="256"/>
         <p class="text-muted">Loading workouts...</p>
     </div>
 
     <div class="list-group">
        <router-link :to="{ name: 'Workout', params: { 'workoutId': workout.id } }" 
-            v-for="workout in workouts" v-bind:key="workout.id" 
+            v-for="workout in $store.state.workouts" v-bind:key="workout.id" 
             class="list-group-item d-flex justify-content-between align-items-center">
             {{ workout.displayStartDateAndTime}}
             <span class="fa fa-chevron-right float-right"></span>
@@ -49,7 +49,6 @@ export default {
     return {
       showNewWorkoutModal: false,
       newWorkoutDate: moment(),
-      loadingWorkouts: false,
       workouts: [],
       config: {
         format: 'DD/MM/YYYY HH:mm'
@@ -64,18 +63,10 @@ export default {
 
     },
     fetchWorkouts () {
-      this.loadingWorkouts = true
-      axios
-        .get(process.env.API_ROOT + '/workouts/')
-        .then(response => {
-          console.log(response)
-          this.workouts = response.data.workouts 
-          this.loadingWorkouts = false
-        })
-        .catch(e => {
-          console.log('Error occured: ' + e)
-          this.loadingWorkouts = false
-        })
+      if(this.$store.state.workouts.length == 0){
+        console.log('Dispatching fetch workouts')
+        this.$store.dispatch('fetchWorkouts')
+      }
     }
   },
   components: {
